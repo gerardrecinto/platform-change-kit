@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>platform-change-kit | Small, checked, reversible platform changes</title>
+<meta name="description" content="Pick the projects a change can break, reject risky change plans before work starts, and run an ECS service behind an ALB with TLS and rollback. Python and Terraform, checked in CI.">
+<style>
+:root {
+  --bg: #fbfaf7; --panel: #ffffff; --ink: #1b1f24; --muted: #5a626c; --line: #e3e0d8;
+  --accent: #0b6e4f; --accent-ink: #ffffff; --warn: #a4380f; --code: #f3f1ea; --chip: #efece3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101412; --panel: #171c19; --ink: #e8ece9; --muted: #9aa6a0; --line: #2a322e;
+    --accent: #4fd1a0; --accent-ink: #07130e; --warn: #ff9b73; --code: #0c100e; --chip: #1f2622;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101412; --panel: #171c19; --ink: #e8ece9; --muted: #9aa6a0; --line: #2a322e;
+  --accent: #4fd1a0; --accent-ink: #07130e; --warn: #ff9b73; --code: #0c100e; --chip: #1f2622;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); }
+.wrap { max-width: 920px; margin: 0 auto; padding: 0 20px; }
+header.top { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; }
+header.top .name { font-weight: 700; letter-spacing: .2px; }
+header.top nav a { margin-left: 18px; color: var(--muted); text-decoration: none; font-size: 15px; }
+header.top nav a:hover { color: var(--ink); }
+.hero { padding: 56px 0 36px; }
+.hero h1 { font-size: clamp(34px, 6vw, 56px); line-height: 1.08; margin: 0 0 18px; letter-spacing: -.02em; }
+.hero p { font-size: 20px; color: var(--muted); max-width: 680px; margin: 0 0 26px; }
+.btn { display: inline-block; padding: 11px 18px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); text-decoration: none; font-weight: 600; margin-right: 10px; }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+section { padding: 34px 0; border-top: 1px solid var(--line); }
+section h2 { margin: 0 0 6px; font-size: 28px; letter-spacing: -.01em; }
+section .lead { color: var(--muted); margin: 0 0 20px; max-width: 700px; }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+.card h3 { margin: 0 0 6px; font-size: 18px; }
+.card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+.demo { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
+.chips label { cursor: pointer; }
+.chips input { position: absolute; opacity: 0; pointer-events: none; }
+.chips span { display: inline-block; padding: 6px 12px; border-radius: 999px; background: var(--chip); border: 1px solid var(--line); font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.chips input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chips input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.result { display: grid; gap: 8px; min-height: 60px; }
+.row { display: grid; grid-template-columns: 90px 1fr; gap: 12px; padding: 8px 12px; border-radius: 10px; background: var(--code); font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.row b { color: var(--accent); }
+.empty { color: var(--muted); font-size: 15px; }
+pre { background: var(--code); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; overflow-x: auto; font: 13.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 10px 0 0; }
+pre .bad { color: var(--warn); }
+pre .good { color: var(--accent); }
+pre .dim { color: var(--muted); }
+.two { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+ul.plain { padding-left: 20px; margin: 8px 0 0; }
+ul.plain li { margin: 6px 0; }
+.note { border-left: 3px solid var(--warn); padding: 4px 14px; background: var(--panel); border-radius: 0 10px 10px 0; color: var(--muted); }
+footer { padding: 30px 0 60px; color: var(--muted); font-size: 15px; border-top: 1px solid var(--line); }
+code { font: 0.92em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code); padding: 1px 6px; border-radius: 6px; }
+@media (max-width: 560px) { .row { grid-template-columns: 1fr; } header.top nav { display: none; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="name">platform-change-kit</div>
+    <nav><a href="#try">Try it</a><a href="#plans">Change plans</a><a href="#stack">The stack</a><a href="#limits">Limits</a><a href="https://github.com/gerardrecinto/platform-change-kit">GitHub</a></nav>
+  </header>
+
+  <div class="hero">
+    <h1>Make platform changes small, checked and reversible.</h1>
+    <p>Build only what a change can break. Refuse a change plan that has no rollback. Run a service behind a load balancer with TLS and a deploy that undoes itself. Python and Terraform, checked in CI.</p>
+    <a class="btn" href="#try">Try it</a><a class="btn ghost" href="https://github.com/gerardrecinto/platform-change-kit">Read the code</a>
+  </div>
+
+  <section>
+    <div class="grid">
+      <div class="card"><h3>Build less, trust it more</h3><p>A monorepo CI selector. A change to a shared library builds its dependents in order. A docs change builds nothing.</p></div>
+      <div class="card"><h3>Changes with a way back</h3><p>A plan needs an owner, an announcement, and for every step a check and a rollback. Production cannot come before staging.</p></div>
+      <div class="card"><h3>A service that heals a bad deploy</h3><p>ECS behind an ALB: TLS 1.3 policy, private tasks, health checks, circuit-breaker rollback, alarms with runbooks.</p></div>
+    </div>
+  </section>
+
+  <section id="try">
+    <h2>Pick what changed</h2>
+    <p class="lead">This runs the same rules as <code>pck affected</code>, in your browser, on the example monorepo: <code>common</code> and <code>db</code> are libraries, <code>api</code> and <code>worker</code> use <code>db</code>, <code>web</code> uses <code>common</code>.</p>
+    <div class="demo">
+      <div class="chips" id="chips" role="group" aria-label="Changed files"></div>
+      <div class="result" id="result" aria-live="polite"><span class="empty">Select one or more files.</span></div>
+    </div>
+    <p class="lead" style="margin-top:14px">In CI, <code>--format matrix</code> prints the JSON a GitHub Actions matrix reads, so a pull request only runs the projects it can break.</p>
+<pre>$ pck affected --root examples/monorepo --changed libs/db/pool.py
+db         changed: libs/db/pool.py
+api        depends on db
+worker     depends on db</pre>
+  </section>
+
+  <section id="plans">
+    <h2>Reject the risky plan before work starts</h2>
+    <p class="lead">A change plan is a short TOML file. The checker refuses the shapes that cause bad nights. Real output from the repo:</p>
+    <div class="two">
+      <div>
+        <strong>A plan that passes</strong>
+<pre>$ pck check examples/plans/https-only-listener.toml
+<span class="good">plan ok</span></pre>
+        <strong style="display:block;margin-top:14px">The same plan, failing in staging</strong>
+<pre>$ pck simulate ... --fail-at staging-listener
+apply     dev-listener (dev)
+check     dev-listener
+ok        dev-listener
+apply     staging-listener (staging)
+check     staging-listener
+<span class="bad">FAILED    staging-listener</span>
+rollback  staging-listener (staging)
+rollback  dev-listener (dev)
+result    rolled back, nothing left half-applied</pre>
+      </div>
+      <div>
+        <strong>A plan that does not</strong>
+<pre>$ pck check examples/plans/big-bang.toml
+<span class="bad">ERROR</span>   change: notify list is empty
+<span class="bad">ERROR</span>   change: announce_hours_before must be at least 1
+<span class="bad">ERROR</span>   step everything-in-prod: prod step with
+        no earlier step in dev, staging
+<span class="bad">ERROR</span>   step everything-in-prod: touches 10
+        resources, limit is 5: split it
+<span class="bad">ERROR</span>   step everything-in-prod: rollback is none
+        but the step is not marked irreversible
+<span class="dim">WARNING</span> step everything-in-prod: no soak_minutes
+plan rejected</pre>
+        <p class="lead" style="margin-top:14px">A good plan also renders a runbook and a short heads-up message: <code>pck runbook</code>, <code>pck announce</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="stack">
+    <h2>ECS behind an ALB, with the boring parts done</h2>
+    <p class="lead">One Terraform module. <code>terraform fmt</code> and <code>terraform validate</code> pass in CI. It has not been applied to a real account.</p>
+    <div class="grid">
+      <div class="card"><h3>TLS and the edge</h3><p>HTTPS listener on a TLS 1.3/1.2 policy, port 80 only redirects, invalid headers dropped, optional access logs.</p></div>
+      <div class="card"><h3>Private by default</h3><p>Tasks in private subnets, reachable only from the load balancer. The app role starts with no permissions.</p></div>
+      <div class="card"><h3>Safe deploys</h3><p>Never below full capacity, two or more tasks, and a circuit breaker that rolls back when new tasks keep failing.</p></div>
+      <div class="card"><h3>Alarms with runbooks</h3><p>5xx, unhealthy targets and low task count, each pointing at a runbook in the repo.</p></div>
+    </div>
+    <ul class="plain">
+      <li><a href="https://github.com/gerardrecinto/platform-change-kit/tree/main/terraform/ecs-alb-service">terraform/ecs-alb-service</a>: the module</li>
+      <li><a href="https://github.com/gerardrecinto/platform-change-kit/tree/main/runbooks">runbooks</a>: 5xx, unhealthy tasks, rolling back a change</li>
+      <li><a href="https://github.com/gerardrecinto/platform-change-kit/blob/main/docs/tls-and-proxy.md">TLS and proxy choices</a>, each with what it costs</li>
+      <li><a href="https://github.com/gerardrecinto/platform-change-kit/blob/main/docs/ai-tools.md">Using AI tools on platform work</a>: six rules a small team can follow</li>
+    </ul>
+  </section>
+
+  <section id="limits">
+    <h2>What this is not</h2>
+    <div class="note">
+      <p>It is a lab. The Terraform is validated, not applied. The commands inside example plans are printed, never run. It is not certified for HIPAA, HITRUST or anything else and has not touched real health data: <a href="https://github.com/gerardrecinto/platform-change-kit/blob/main/docs/controls.md">docs/controls.md</a> says what it could show a compliance team and what it could not.</p>
+    </div>
+  </section>
+
+  <footer>
+    By Gerard Recinto. MIT licensed. <a href="https://github.com/gerardrecinto/platform-change-kit">Source on GitHub</a>.
+  </footer>
+</div>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  var files = [
+    "libs/common/logging.py", "libs/db/pool.py", "services/api/app.py", "services/worker/jobs.py",
+    "apps/web/src/index.ts", "schemas/openapi.yaml", ".github/ci.yml", "README.md"
+  ];
+  var chips = document.getElementById("chips");
+  var out = document.getElementById("result");
+  var graph = null;
+
+  files.forEach(function (f, i) {
+    var label = document.createElement("label");
+    var input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = f;
+    if (f === "libs/db/pool.py") input.checked = true;
+    var span = document.createElement("span");
+    span.textContent = f;
+    label.appendChild(input);
+    label.appendChild(span);
+    chips.appendChild(label);
+    input.addEventListener("change", render);
+  });
+
+  function render() {
+    if (!graph) return;
+    var picked = Array.prototype.slice.call(chips.querySelectorAll("input:checked")).map(function (i) { return i.value; });
+    out.textContent = "";
+    if (!picked.length) {
+      var empty = document.createElement("span");
+      empty.className = "empty";
+      empty.textContent = "Select one or more files.";
+      out.appendChild(empty);
+      return;
+    }
+    var result = affected(graph, picked);
+    if (!result.affected.length) {
+      var none = document.createElement("span");
+      none.className = "empty";
+      none.textContent = "Nothing to build. " + result.unowned.join(", ") + " is not in any project.";
+      out.appendChild(none);
+      return;
+    }
+    result.affected.forEach(function (name) {
+      var row = document.createElement("div");
+      row.className = "row";
+      var b = document.createElement("b");
+      b.textContent = name;
+      var why = document.createElement("span");
+      why.textContent = result.reasons[name].slice(0, 2).join("; ");
+      row.appendChild(b);
+      row.appendChild(why);
+      out.appendChild(row);
+    });
+  }
+
+  fetch("graph.json").then(function (r) { return r.json(); }).then(function (g) {
+    graph = g;
+    render();
+  }).catch(function () {
+    out.textContent = "Could not load graph.json. Serve this folder over http to try it.";
+  });
+})();
+</script>
+</body>
+</html>

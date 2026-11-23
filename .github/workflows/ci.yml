@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests
+        run: python -m unittest discover -s tests -t . -v
+      - name: The good plan passes
+        run: python -m pck check examples/plans/https-only-listener.toml
+      - name: The big-bang plan is rejected
+        run: |
+          if python -m pck check examples/plans/big-bang.toml; then
+            echo "big-bang plan should have been rejected"; exit 1
+          fi
+      - name: Affected projects for a shared library change
+        run: python -m pck affected --root examples/monorepo --changed libs/db/pool.py
+      - name: The site gives the same answers as the Python rules
+        run: node docs/check.js
+      - name: The site graph is current
+        run: |
+          python -m pck graph --root examples/monorepo > /tmp/graph.json
+          diff /tmp/graph.json docs/graph.json
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+      - run: terraform fmt -check -recursive terraform
+      - working-directory: terraform/examples/dev
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate

@@ -1,0 +1,1 @@
+{ "global_paths": [".github/*", "package-lock.json", "pyproject.toml"] }

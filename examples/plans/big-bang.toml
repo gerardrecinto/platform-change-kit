@@ -1,0 +1,13 @@
+# What the validator exists to stop.
+[change]
+title = "rebuild networking and move everything"
+owner = "platform"
+
+[[step]]
+id = "everything-in-prod"
+env = "prod"
+summary = "Replace the VPC, the load balancer, the cluster and the database in one apply."
+resources = ["vpc", "subnets", "route_tables", "alb", "listeners", "ecs_cluster", "ecs_service", "rds", "sg_alb", "sg_tasks"]
+apply = "terraform apply -auto-approve"
+validate = "echo looks fine"
+rollback = "none"

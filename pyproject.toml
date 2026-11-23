@@ -1,0 +1,12 @@
+[project]
+name = "platform-change-kit"
+version = "0.1.0"
+description = "Small, checked, reversible platform changes: monorepo-aware CI, change plans with rollback, and an ECS behind ALB stack."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[project.scripts]
+pck = "pck.cli:main"
+
+[tool.setuptools]
+packages = ["pck"]

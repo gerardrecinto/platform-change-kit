@@ -1,0 +1,52 @@
+{
+  "projects": {
+    "web": {
+      "path": "apps/web",
+      "depends_on": [
+        "common"
+      ],
+      "extra_paths": [
+        "schemas/openapi.yaml"
+      ]
+    },
+    "infra": {
+      "path": "infra/terraform",
+      "depends_on": [],
+      "extra_paths": []
+    },
+    "common": {
+      "path": "libs/common",
+      "depends_on": [],
+      "extra_paths": []
+    },
+    "db": {
+      "path": "libs/db",
+      "depends_on": [
+        "common"
+      ],
+      "extra_paths": []
+    },
+    "api": {
+      "path": "services/api",
+      "depends_on": [
+        "db",
+        "common"
+      ],
+      "extra_paths": [
+        "schemas/openapi.yaml"
+      ]
+    },
+    "worker": {
+      "path": "services/worker",
+      "depends_on": [
+        "db"
+      ],
+      "extra_paths": []
+    }
+  },
+  "global_paths": [
+    ".github/*",
+    "package-lock.json",
+    "pyproject.toml"
+  ]
+}

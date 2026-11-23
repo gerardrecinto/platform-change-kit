@@ -1,0 +1,38 @@
+# Move the api to an HTTPS-only listener with a TLS 1.3 policy, one environment at a time.
+[change]
+title = "api: HTTPS-only listener with TLS 1.3 policy"
+owner = "platform"
+window = "Tue 10:00-11:00 PT"
+announce_hours_before = 24
+notify = ["#eng", "#qa", "#compliance"]
+
+[[step]]
+id = "dev-listener"
+env = "dev"
+summary = "Add the HTTPS listener and the 301 redirect in dev."
+resources = ["aws_lb_listener.https", "aws_lb_listener.http_redirect"]
+apply = "terraform -chdir=envs/dev apply -target=module.api.aws_lb_listener.https"
+validate = "curl -sSf https://api.dev.example.test/healthz && curl -sI http://api.dev.example.test | grep 301"
+rollback = "terraform -chdir=envs/dev apply -var=https_only=false"
+expected = "200 on HTTPS, 301 on HTTP"
+
+[[step]]
+id = "staging-listener"
+env = "staging"
+summary = "Same change in staging, then run the QA smoke suite."
+resources = ["aws_lb_listener.https", "aws_lb_listener.http_redirect"]
+apply = "terraform -chdir=envs/staging apply -target=module.api.aws_lb_listener.https"
+validate = "make smoke ENV=staging"
+rollback = "terraform -chdir=envs/staging apply -var=https_only=false"
+expected = "smoke suite green, no new 5xx in the ALB alarm"
+
+[[step]]
+id = "prod-listener"
+env = "prod"
+summary = "Same change in prod after staging has soaked."
+resources = ["aws_lb_listener.https", "aws_lb_listener.http_redirect"]
+apply = "terraform -chdir=envs/prod apply -target=module.api.aws_lb_listener.https"
+validate = "make smoke ENV=prod"
+rollback = "terraform -chdir=envs/prod apply -var=https_only=false"
+expected = "smoke suite green, 5xx alarm quiet"
+soak_minutes = 30

@@ -1,0 +1,1 @@
+{ "name": "api", "depends_on": ["db", "common"], "extra_paths": ["schemas/openapi.yaml"] }

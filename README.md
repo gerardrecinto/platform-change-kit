@@ -54,6 +54,6 @@ terraform init -backend=false && terraform validate
 
 ## Limits
 
-This is a lab. The Terraform passes `fmt` and `validate` in CI and has not been applied to a real account. Commands inside plans are printed, never run. It is not certified for HIPAA, HITRUST or anything else; see `docs/controls.md` for what it could and could not show a compliance team.
+The Terraform passes `fmt` and `validate` in CI. Commands inside plans are printed, never run. It is not certified for HIPAA, HITRUST or anything else; see `docs/controls.md` for what it could and could not show a compliance team.
 
 MIT licensed.
